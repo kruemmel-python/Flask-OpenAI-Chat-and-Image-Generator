@@ -1,6 +1,6 @@
 # Flask OpenAI Chat and Image Generator
 
-Dieses Projekt implementiert eine Flask-Webanwendung, die die OpenAI API nutzt, um basierend auf Benutzereingaben Code und Bilder zu generieren. Die Anwendung bietet eine einfache Benutzeroberfläche, um mit diesen Funktionen zu interagieren.
+Dieses Projekt implementiert eine Flask-Webanwendung, die die OpenAI API nutzt, um basierend auf Benutzereingaben Code und Bilder zu generieren. Die Anwendung bietet eine einfache Benutzeroberfläche, um mit diesen Funktionen zu interagieren und speichert zudem den gesamten Chatverlauf.
 
 ## Inhaltsverzeichnis
 
@@ -16,13 +16,15 @@ Dieses Projekt implementiert eine Flask-Webanwendung, die die OpenAI API nutzt, 
     - [GET /](#get-)
     - [POST /generate_code](#post-generate_code)
     - [POST /generate_image](#post-generate_image)
+    - [GET /chatlog](#get-chatlog)
+    - [GET /chatlog/<date>/<int:index>](#get-chatlogdateindex)
   - [Logging](#logging)
   - [Fehlerbehandlung](#fehlerbehandlung)
   - [Lizenz](#lizenz)
 
 ## Über das Projekt
 
-Diese Flask-Anwendung ermöglicht es, Antworten basierend auf einem gegebenen Prompt zu generieren und Bilder mithilfe von OpenAIs Bildgenerierungs-API zu erstellen. Die resultierenden Bilder werden auf dem Server gespeichert und dem Benutzer zum Download zur Verfügung gestellt.
+Diese Flask-Anwendung ermöglicht es, Antworten basierend auf einem gegebenen Prompt zu generieren und Bilder mithilfe von OpenAIs Bildgenerierungs-API zu erstellen. Die resultierenden Bilder werden auf dem Server gespeichert und dem Benutzer zum Download zur Verfügung gestellt. Zusätzlich wird der gesamte Chatverlauf automatisch gespeichert und kann über die Benutzeroberfläche abgerufen werden.
 
 ## Voraussetzungen
 
@@ -75,9 +77,15 @@ Navigiere dann zu `http://localhost:80` in deinem Webbrowser.
 /
 ├── app.py                # Hauptdatei mit der Flask-Anwendung
 ├── templates/
-│   └── index.html        # HTML-Template für die Hauptseite
+│   ├── index.html        # HTML-Template für die Hauptseite
+│   ├── chatlog.html      # HTML-Template für die Anzeige des Chatverlaufs
+│   └── view_chat.html    # HTML-Template für die detaillierte Ansicht eines Chat-Eintrags
 ├── static/
-│   └── generated_image.png  # Hier wird das generierte Bild gespeichert
+│   ├── generated_image.png  # Hier wird das generierte Bild gespeichert
+│   └── styles/
+│       ├── styles.css    # CSS-Datei für die Gestaltung
+│       └── scripts.js    # JavaScript-Datei für zusätzliche Funktionen
+├── chatlog.json          # JSON-Datei zur Speicherung des Chatverlaufs
 ├── app.log               # Log-Datei für die Anwendung
 ├── requirements.txt      # Liste der Python-Abhängigkeiten
 └── README.md             # Diese README-Datei
@@ -87,11 +95,11 @@ Navigiere dann zu `http://localhost:80` in deinem Webbrowser.
 
 ### GET /
 
-Rendert die Startseite mit einem Formular, um Prompts für die Code- und Bildgenerierung einzugeben.
+Rendert die Startseite mit einem Formular, um Prompts für die Code- und Bildgenerierung einzugeben. Der Chatverlauf wird auf der rechten Seite angezeigt.
 
 ### POST /generate_code
 
-Erwartet ein Formularfeld `prompt` und gibt ein JSON-Objekt mit dem generierten Code zurück.
+Erwartet ein Formularfeld `prompt` und gibt ein JSON-Objekt mit dem generierten Code zurück. Der Prompt und die Antwort werden im Chatlog gespeichert.
 
 - **Request**: `POST`
 - **Parameter**: `prompt` (Text)
@@ -99,11 +107,28 @@ Erwartet ein Formularfeld `prompt` und gibt ein JSON-Objekt mit dem generierten 
 
 ### POST /generate_image
 
-Erwartet ein Formularfeld `prompt` und gibt ein JSON-Objekt mit der URL des generierten Bildes zurück.
+Erwartet ein Formularfeld `prompt` und gibt ein JSON-Objekt mit der URL des generierten Bildes zurück. Der Prompt und die Bild-URL werden im Chatlog gespeichert.
 
 - **Request**: `POST`
 - **Parameter**: `prompt` (Text)
 - **Response**: `{ "image_url": "/static/generated_image.png" }`
+
+### GET /chatlog
+
+Zeigt eine Liste der gespeicherten Chatlogs an, gruppiert nach Datum. Jeder Chatlog-Eintrag kann angeklickt werden, um eine detaillierte Ansicht des Prompts und der zugehörigen Antwort zu öffnen.
+
+- **Request**: `GET`
+- **Response**: Eine HTML-Seite mit einer Liste der Chatlog-Einträge.
+
+### GET /chatlog/<date>/<int:index>
+
+Zeigt die detaillierte Ansicht eines spezifischen Chatlog-Eintrags an, basierend auf Datum und Index.
+
+- **Request**: `GET`
+- **Parameter**:
+  - `date`: Das Datum des Chatlog-Eintrags (z.B. `2024-08-31`)
+  - `index`: Der Index des spezifischen Eintrags für dieses Datum
+- **Response**: Eine HTML-Seite mit dem spezifischen Prompt und der zugehörigen Antwort.
 
 ## Logging
 
@@ -123,19 +148,4 @@ Die Anwendung protokolliert Fehler und gibt eine entsprechende JSON-Antwort mit 
 ## Lizenz
 
 Dieses Projekt steht unter der MIT-Lizenz. Weitere Informationen findest du in der `LICENSE` Datei.
-```
-
-### `requirements.txt` Beispiel
-
-Hier ist ein Beispiel für die `requirements.txt`, die alle notwendigen Python-Bibliotheken enthält:
-
-```plaintext
-Flask==2.3.2
-openai==0.27.0
-Pillow==9.4.0
-requests==2.28.1
-```
-
-Diese Datei stellt sicher, dass alle im Code verwendeten Bibliotheken installiert werden, wenn der Befehl `pip install -r requirements.txt` ausgeführt wird.
-
 
