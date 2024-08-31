@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>OpenAI Flask App</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            width: 500px;
+            max-width: 100%;
+        }
+        h1 {
+            font-size: 24px;
+            color: #4a90e2;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 10px;
+        }
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            margin-bottom: 20px;
+            resize: none;
+            box-sizing: border-box;
+        }
+        input[type="submit"], #copyButton, #downloadImageButton {
+            background-color: #4a90e2;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        input[type="submit"]:hover, #copyButton:hover, #downloadImageButton:hover {
+            background-color: #357ABD;
+        }
+        #copyButton, #downloadImageButton {
+            width: 100%;
+            margin-top: -10px;
+        }
+        #generatedImage {
+            margin-top: 20px;
+            max-width: 100%;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Frage an OpenAI</h1>
+        <form id="promptForm">
+            <label for="prompt">Geben Sie Ihre Frage ein:</label>
+            <textarea id="prompt" name="prompt" rows="5" cols="50" required></textarea>
+            <input type="submit" value="Senden">
+        </form>
+
+        <h2>Antwort:</h2>
+        <textarea id="response" rows="10" cols="50" readonly></textarea>
+        <button id="copyButton">Antwort kopieren</button>
+
+        <h2>Bild generieren:</h2>
+        <form id="imageForm">
+            <label for="imagePrompt">Geben Sie einen Bild-Prompt ein:</label>
+            <input type="text" id="imagePrompt" name="imagePrompt" required>
+            <input type="submit" value="Bild generieren">
+        </form>
+        <button id="downloadImageButton" style="display:none;">Bild herunterladen</button>
+        <img id="generatedImage" src="" alt="Generiertes Bild">
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            $('#promptForm').on('submit', function (e) {
+                e.preventDefault();
+                var prompt = $('#prompt').val();
+                $.ajax({
+                    type: 'POST',
+                    url: '/generate_code',
+                    data: { prompt: prompt },
+                    success: function (response) {
+                        $('#response').val(response.code);
+                    }
+                });
+            });
+
+            $('#copyButton').on('click', function () {
+                var responseText = $('#response');
+                responseText.select();
+                document.execCommand('copy');
+                alert('Antwort wurde in die Zwischenablage kopiert!');
+            });
+
+            $('#imageForm').on('submit', function (e) {
+                e.preventDefault();
+                var prompt = $('#imagePrompt').val();
+                $.ajax({
+                    type: 'POST',
+                    url: '/generate_image',
+                    data: { prompt: prompt },
+                    success: function (response) {
+                        if (response.image_url) {
+                            $('#generatedImage').attr('src', response.image_url).show();
+                            $('#downloadImageButton').attr('href', response.image_url).show();
+                        } else {
+                            alert('Fehler bei der Bildgenerierung.');
+                        }
+                    },
+                    error: function () {
+                        alert('Fehler bei der Bildgenerierung.');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
