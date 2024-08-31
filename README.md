@@ -1,4 +1,6 @@
 # Flask OpenAI Chat and Image Generator
+![image](https://github.com/user-attachments/assets/42cf9ab4-bd61-48a9-86c8-0b562b443421)
+
 
 Dieses Projekt implementiert eine Flask-Webanwendung, die die OpenAI API nutzt, um basierend auf Benutzereingaben Code und Bilder zu generieren. Die Anwendung bietet eine einfache Benutzeroberfläche, um mit diesen Funktionen zu interagieren und speichert zudem den gesamten Chatverlauf.
 
