@@ -1,0 +1,14 @@
+{
+    "2023-09-01": [
+        {
+            "prompt": "Erstelle eine Python-Funktion, die prüft, ob eine Zahl gerade ist.",
+            "response": "def is_even(n): return n % 2 == 0"
+        }
+    ],
+    "2023-09-02": [
+        {
+            "prompt": "Generiere ein Bild von einem Sonnenuntergang am Strand.",
+            "response": "/static/generated_image_20230902.png"
+        }
+    ]
+}

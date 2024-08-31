@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Chatverlauf</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/styles.css') }}">
+</head>
+<body>
+    <div class="chatlog-container">
+        <h1>Chatverlauf</h1>
+        <ul id="chatlog">
+            {% for date, entries in chatlog.items() %}
+                <li>
+                    <strong>{{ date }}</strong>
+                    <ul>
+                        {% for entry in entries %}
+                            <li>
+                                <a href="{{ url_for('view_chat', date=date, index=loop.index0) }}" target="_blank">
+                                    {{ entry.prompt }}
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>

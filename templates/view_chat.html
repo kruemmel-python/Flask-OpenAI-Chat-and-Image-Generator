@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Chatverlauf ansehen</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Chatverlauf</h1>
+        <h2>Prompt:</h2>
+        <p>{{ prompt }}</p>
+        <h2>Antwort:</h2>
+        <pre><code>{{ response }}</code></pre>
+    </div>
+</body>
+</html>

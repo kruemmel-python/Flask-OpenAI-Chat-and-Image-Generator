@@ -1,0 +1,117 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    color: #333;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    height: 100vh;
+}
+
+pre {
+    background-color: #f4f4f9;
+    padding: 10px;
+    border-radius: 5px;
+    overflow-x: auto; /* Ermöglicht horizontales Scrollen, falls der Text breiter als das Container-Element ist */
+    border: 1px solid #ccc;
+}
+
+code {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 14px;
+}
+
+.container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    max-width: 1200px;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.main-content {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    width: 70%;
+    margin-right: 20px;
+}
+
+.chatlog-container {
+    width: 25%;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+    max-height: calc(100vh - 40px);
+}
+.chatlog-container a {
+    display: block;
+    white-space: nowrap; /* Verhindert den Zeilenumbruch innerhalb des Links */
+    overflow: hidden; /* Versteckt den überlaufenden Text */
+    text-overflow: ellipsis; /* Fügt '...' hinzu, wenn der Text zu lang ist */
+    max-width: 100%; /* Setzt die maximale Breite auf den Container */
+}
+
+.chatlog-container ul {
+    list-style-type: none; /* Entfernt die Standard-Aufzählungszeichen */
+    padding-left: 0;
+}
+
+.chatlog-container li {
+    margin-bottom: 10px;
+}
+
+
+h1, h2 {
+    color: #4a90e2;
+    margin-bottom: 20px;
+}
+
+label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 10px;
+}
+
+textarea, input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    margin-bottom: 20px;
+    resize: none;
+    box-sizing: border-box;
+}
+
+input[type="submit"], #copyButton, #downloadImageButton {
+    background-color: #4a90e2;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+input[type="submit"]:hover, #copyButton:hover, #downloadImageButton:hover {
+    background-color: #357ABD;
+}
+
+#copyButton, #downloadImageButton {
+    width: 100%;
+    margin-top: -10px;
+}
+
+#generatedImage {
+    margin-top: 20px;
+    max-width: 100%;
+    display: none;
+}
