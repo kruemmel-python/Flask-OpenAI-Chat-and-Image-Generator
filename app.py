@@ -1,102 +1,183 @@
-import logging  # Importiert das Logging-Modul, um Ereignisse zu protokollieren
-from flask import Flask, request, jsonify, render_template, url_for  # Importiert wichtige Flask-Komponenten für die Webanwendung
-from openai import OpenAI  # Importiert die OpenAI-Bibliothek zur Nutzung der OpenAI API
-import requests  # Importiert die Requests-Bibliothek, um HTTP-Anfragen zu senden
-from io import BytesIO  # Importiert BytesIO für das Arbeiten mit binären Daten im Speicher
-from PIL import Image  # Importiert die Pillow-Bibliothek zur Bildverarbeitung
-import os  # Importiert das OS-Modul zum Arbeiten mit dem Dateisystem
-import json  # Importiert das JSON-Modul zum Arbeiten mit JSON-Daten
-from datetime import datetime  # Importiert das datetime-Modul zum Arbeiten mit Datum und Uhrzeit
+from flask import Flask, request, jsonify, render_template, redirect, url_for, flash
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from openai import OpenAI
+import os
+import json
+from datetime import datetime
+from dotenv import load_dotenv, find_dotenv
+import requests
+from io import BytesIO
+from PIL import Image
+import logging
 
-# Konfiguriert das Logging-Modul, um alle Logmeldungen in eine Datei namens 'app.log' zu schreiben
+# Initialisiere die App und Konfiguration
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your_secret_key'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+
+# Initialisiere SQLAlchemy und Flask-Login
+db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+
+# Benutzermodell
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(150), unique=True, nullable=False)
+    password = db.Column(db.String(150), nullable=False)
+    chatlog = db.Column(db.Text, default='{}')
+
+# Lade den Benutzer anhand der User-ID
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# Setze das Logging für die Ausgabe in eine Datei
 logging.basicConfig(filename='app.log', level=logging.DEBUG)
 
-# Setzt den OpenAI API-Schlüssel für die Authentifizierung
-api_key = "OPENAI_API_KEY"
+# Lade die .env-Datei und den API-Schlüssel manuell
+load_dotenv(find_dotenv())
+
+# Manuelles Einlesen des API-Schlüssels
+api_key = None
+with open(".env", "r") as f:
+    for line in f:
+        if line.startswith("OPENAI_API_KEY"):
+            key_value = line.strip().split('=', 1)
+            if len(key_value) == 2:
+                api_key = key_value[1].strip('"')
+                os.environ[key_value[0]] = api_key
+
+if not api_key:
+    raise ValueError("API-Schlüssel konnte nicht aus der .env-Datei geladen werden.")
+
+print(f"Länge des API-Schlüssels: {len(api_key)}")
+print(f"API-Schlüssel: {api_key}")
+
 client = OpenAI(api_key=api_key)
 
-# Erstellt eine Flask-Webanwendung
-app = Flask(__name__)
-
-# Definiert den Dateinamen für die Speicherung des Chatverlaufs
-CHATLOG_FILE = "chatlog.json"
-
-# Lädt den Chatlog aus einer JSON-Datei
-def load_chatlog():
-    # Überprüft, ob die Datei 'chatlog.json' existiert
-    if os.path.exists(CHATLOG_FILE):
-        # Öffnet und lädt die JSON-Datei, wenn sie existiert
-        with open(CHATLOG_FILE, "r") as f:
-            return json.load(f)
-    # Gibt einen leeren Chatlog zurück, wenn die Datei nicht existiert
-    return {}
-
-# Speichert den Chatlog in einer JSON-Datei
-def save_chatlog(chatlog):
-    # Öffnet die Datei 'chatlog.json' im Schreibmodus und speichert die Chatdaten
-    with open(CHATLOG_FILE, "w") as f:
-        json.dump(chatlog, f, indent=4)  # Speichert das JSON mit einer Einrückung von 4 Leerzeichen
-
-# Funktion zur Generierung von Code basierend auf einem Prompt
+# Definition der generate_code Funktion
 def generate_code(prompt):
-    # Sendet eine Anfrage an die OpenAI API, um Code basierend auf dem Prompt zu generieren
+    """
+    Generiert Code basierend auf einem Prompt mithilfe der OpenAI-API.
+
+    Args:
+        prompt (str): Der Prompt zur Codegenerierung.
+
+    Returns:
+        str: Der generierte Code.
+    """
     stream = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": prompt}
         ],
-        stream=True,  # Aktiviert das Streaming, um den Code in Teilen zu empfangen
+        stream=True,
     )
-    code = ""  # Initialisiert eine leere Zeichenkette für den generierten Code
-    # Iteriert über die empfangenen Teile des Codes
+    code = ""
     for chunk in stream:
-        # Überprüft, ob der empfangene Teil Inhalt enthält und fügt ihn dem Code hinzu
         if chunk.choices[0].delta.content is not None:
             code += chunk.choices[0].delta.content
-    return code.strip()  # Gibt den vollständigen Code zurück, ohne führende oder nachfolgende Leerzeichen
+    return code.strip()
 
-# Fügt einen neuen Eintrag zum Chatlog hinzu
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
+        new_user = User(username=username, password=hashed_password)
+
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            login_user(new_user)
+            return redirect(url_for('index'))
+        except:
+            return 'Benutzername existiert bereits. Bitte wähle einen anderen.'
+    
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        # Suche den Benutzer in der Datenbank
+        user = User.query.filter_by(username=username).first()
+
+        # Überprüfe das Passwort und melde den Benutzer an, wenn alles korrekt ist
+        if user and check_password_hash(user.password, password):
+            login_user(user)
+            return redirect(url_for('index'))
+        else:
+            flash('Anmeldung fehlgeschlagen. Überprüfe deinen Benutzernamen und dein Passwort.')
+
+    return render_template('login.html')                                                                                                                                                                            
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+# Anpassungen für benutzerspezifische Chatlogs
+def load_chatlog():
+    if current_user.is_authenticated:
+        return json.loads(current_user.chatlog)
+    return {}
+
+def save_chatlog(chatlog):
+    if current_user.is_authenticated:
+        current_user.chatlog = json.dumps(chatlog)
+        db.session.commit()
+
 def append_chatlog(prompt, response):
-    # Holt das aktuelle Datum im Format 'YYYY-MM-DD'
     date = datetime.now().strftime("%Y-%m-%d")
-    # Lädt den bestehenden Chatlog
     chatlog = load_chatlog()
 
-    # Überprüft, ob es für das aktuelle Datum bereits Einträge gibt, ansonsten wird ein neuer Eintrag erstellt
     if date not in chatlog:
         chatlog[date] = []
 
-    # Fügt den neuen Prompt und die zugehörige Antwort zum Chatlog hinzu
     chatlog[date].append({
         "prompt": prompt,
         "response": response
     })
 
-    # Speichert den aktualisierten Chatlog
     save_chatlog(chatlog)
 
-# Route für die Startseite der Webanwendung
 @app.route('/')
+@login_required
 def index():
-    chatlog = load_chatlog()  # Lädt den bestehenden Chatlog
-    return render_template('index.html', chatlog=chatlog)  # Übergibt den Chatlog an das HTML-Template
+    chatlog = load_chatlog()
+    return render_template('index.html', chatlog=chatlog)
 
-# Route zur Generierung von Code basierend auf einem Prompt
 @app.route('/generate_code', methods=['POST'])
+@login_required
 def generate_code_route():
-    prompt = request.form['prompt']  # Holt den Prompt aus dem übermittelten Formular
-    code = generate_code(prompt)  # Generiert den Code basierend auf dem Prompt
-    append_chatlog(prompt, code)  # Fügt den Prompt und die Antwort zum Chatlog hinzu
-    return jsonify({'code': code})  # Gibt den generierten Code als JSON zurück
-
-# Route zur Generierung von Bildern basierend auf einem Prompt
-@app.route('/generate_image', methods=['POST'])
-def generate_image():
-    prompt = request.form['prompt']  # Holt den Prompt aus dem übermittelten Formular
+    prompt = request.form.get('prompt')  # Verwende 'get', um Fehler zu vermeiden, wenn der prompt fehlt
+    if not prompt:
+        return jsonify({'error': 'Kein Prompt erhalten'}), 400
     
     try:
-        logging.debug("Sende Anfrage an OpenAI API...")  # Protokolliert, dass eine Anfrage gesendet wird
+        code = generate_code(prompt)
+        append_chatlog(prompt, code)
+        return jsonify({'code': code})
+    except Exception as e:
+        logging.error(f"Fehler bei der Codegenerierung: {e}")
+        return jsonify({'error': f'Codegenerierung fehlgeschlagen: {str(e)}'}), 500
+
+@app.route('/generate_image', methods=['POST'])
+@login_required
+def generate_image():
+    prompt = request.form['prompt']
+
+    try:
+        logging.debug("Sende Anfrage an OpenAI API...")
         response = client.images.generate(
             model="dall-e-3",
             prompt=prompt,
@@ -104,47 +185,51 @@ def generate_image():
             quality="hd",
             n=1,
         )
-        logging.debug(f"Antwort von OpenAI erhalten: {response}")  # Protokolliert die erhaltene Antwort
-        
+        logging.debug(f"Antwort von OpenAI erhalten: {response}")
+
         if response.data and len(response.data) > 0:
-            image_url = response.data[0].url  # Holt die URL des generierten Bildes
-            logging.debug(f"Bild-URL: {image_url}")  # Protokolliert die Bild-URL
-        
-            image_data = requests.get(image_url).content  # Holt die Bilddaten über die URL
-            img = Image.open(BytesIO(image_data))  # Öffnet das Bild aus den empfangenen Daten
-        
-            file_path = os.path.join(os.getcwd(), "static/generated_image.png")  # Setzt den Pfad, unter dem das Bild gespeichert wird
-            img.save(file_path)  # Speichert das Bild auf dem Server
-        
-            logging.debug(f"Bild gespeichert unter: {file_path}")  # Protokolliert, wo das Bild gespeichert wurde
-        
-            append_chatlog(prompt, image_url)  # Fügt den Prompt und die Bild-URL zum Chatlog hinzu
-        
-            return jsonify({'image_url': url_for('static', filename='generated_image.png')})  # Gibt die Bild-URL als JSON zurück
+            image_url = response.data[0].url
+            logging.debug(f"Bild-URL: {image_url}")
+
+            image_data = requests.get(image_url).content
+            img = Image.open(BytesIO(image_data))
+
+            # Erzeuge den Dateinamen mit Zeitstempel
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_name = f"generated_image_{timestamp}.png"
+            file_path = os.path.join(os.getcwd(), "static", file_name)
+            img.save(file_path)
+
+            logging.debug(f"Bild gespeichert unter: {file_path}")
+
+            append_chatlog(prompt, image_url)
+
+            # Gebe den Dateinamen in der JSON-Antwort zurück
+            return jsonify({'image_url': url_for('static', filename=file_name)})
         else:
-            logging.error("Kein Bild in der Antwort gefunden.")  # Protokolliert, wenn kein Bild gefunden wurde
+            logging.error("Kein Bild in der Antwort gefunden.")
             return jsonify({'error': 'Bildgenerierung fehlgeschlagen: Kein Bild gefunden'}), 500
-    
+
     except Exception as e:
-        logging.error(f"Fehler bei der Bildgenerierung: {e}")  # Protokolliert alle Fehler, die auftreten
-        return jsonify({'error': f'Bildgenerierung fehlgeschlagen: {str(e)}'}), 500  # Gibt eine Fehlermeldung als JSON zurück
+        logging.error(f"Fehler bei der Bildgenerierung: {e}")
+        return jsonify({'error': f'Bildgenerierung fehlgeschlagen: {str(e)}'}), 500
 
-# Route zum Anzeigen des Chatlogs
 @app.route('/chatlog')
+@login_required
 def chatlog():
-    chatlog = load_chatlog()  # Lädt den bestehenden Chatlog
-    return render_template('chatlog.html', chatlog=chatlog)  # Übergibt den Chatlog an das HTML-Template
+    chatlog = load_chatlog()
+    return render_template('chatlog.html', chatlog=chatlog)
 
-# Route zum Anzeigen eines spezifischen Chatlog-Eintrags basierend auf Datum und Index
 @app.route('/chatlog/<date>/<int:index>')
+@login_required
 def view_chat(date, index):
-    chatlog = load_chatlog()  # Lädt den bestehenden Chatlog
-    # Überprüft, ob der Eintrag für das Datum und den Index existiert
+    chatlog = load_chatlog()
     if date in chatlog and 0 <= index < len(chatlog[date]):
-        entry = chatlog[date][index]  # Holt den spezifischen Eintrag
-        return render_template('view_chat.html', prompt=entry['prompt'], response=entry['response'])  # Übergibt den Eintrag an das HTML-Template
-    return "Chatverlauf nicht gefunden", 404  # Gibt eine Fehlermeldung zurück, wenn der Eintrag nicht existiert
+        entry = chatlog[date][index]
+        return render_template('view_chat.html', prompt=entry['prompt'], response=entry['response'])
+    return "Chatverlauf nicht gefunden", 404
 
-# Startet die Flask-Anwendung, wenn das Skript direkt ausgeführt wird
 if __name__ == "__main__":
-    app.run(debug=True, port=80)
+    with app.app_context():
+        db.create_all()  # Erstellt die SQLite-Datenbank und die Tabellen, falls nicht vorhanden
+    app.run(debug=True, host='0.0.0.0', port=80)
